@@ -95,8 +95,7 @@
     
     <div class="e-content article-entry" itemprop="articleBody">
       
-        <h1>Sched-model draft</h1>
-<h2 id="Framework">Framework</h2>
+        <h2 id="Framework">Framework</h2>
 <ol>
 <li>in-order pipeline and pipeline stalls.</li>
 <li>what we need in scheduling-model and how gcc and llvm represent it.</li>
@@ -107,13 +106,45 @@
 <h2 id="Extended-in-order-pipeline">Extended in-order pipeline</h2>
 <h3 id="Extended-EX-stage-pipeline">Extended EX stage pipeline</h3>
 <p>我不想在这里讨论基本的五级顺序流水线概念，你可以在任何一本介绍计算机体系结构的书上找到相关的内容，所以我会假设你已经了解基本的顺序流水线知识、流水线冒险（结构冒险、数据冒险、控制冒险）、数据前推，如果你对提到的任何关键词有疑问，请先补充相关的知识；）</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    EX[EX]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt; ID</span><br><span class="line">    ID --&gt; EX</span><br><span class="line">    EX --&gt; MEM</span><br><span class="line">    MEM --&gt; WB</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">flowchart LR
+    IF[IF]
+    ID[ID]
+    EX[EX]
+    MEM[MEM]
+    WB[WB]
+
+    IF --> ID
+    ID --> EX
+    EX --> MEM
+    MEM --> WB</pre>
 <p>基本的五级流水线（取指，译码，执行，访存，写回）由于做了简化，并没有暴露其中的细节，从图中看起来所有的执行单元被抽象成一个 EX stage，而真实的 cpu pipeline 不仅要处理基本的整数运算，还需要处理浮点运算以及它们各自的加减乘除，会包含一些更复杂的功能单元，比如乘法器，浮点加法器等。</p>
 <p>假设我们有一个可以处理各种整数运算，浮点加减乘除运算的 pipeline，从黑盒子的角度来看，它可能长成这个样子。</p>
 <blockquote>
 <p>不同硬件实现不同，可能有些 pipeline 会把整数乘法单元和除法单元分开。</p>
 </blockquote>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    INT_OP[Integer Unit]</span><br><span class="line">    FP_ADD[FP Add/Sub]</span><br><span class="line">    FP_MUL[FP Mul]</span><br><span class="line">    FP_DIV[FP DIV]</span><br><span class="line">    MUL[MUL/DIV]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt;| | ID</span><br><span class="line">    ID --&gt;| | MUL</span><br><span class="line">    ID --&gt;| | FP_DIV</span><br><span class="line">    ID --&gt;| | INT_OP</span><br><span class="line">    ID --&gt;| | FP_ADD</span><br><span class="line">    ID --&gt;| | FP_MUL</span><br><span class="line">    MUL --&gt;| | MEM</span><br><span class="line">    INT_OP --&gt;| | MEM</span><br><span class="line">    FP_ADD --&gt;| | MEM</span><br><span class="line">    FP_MUL --&gt;| | MEM</span><br><span class="line">    FP_DIV --&gt;| | MEM</span><br><span class="line">    MEM --&gt;| | WB</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">flowchart LR
+    IF[IF]
+    ID[ID]
+    INT_OP[Integer Unit]
+    FP_ADD[FP Add/Sub]
+    FP_MUL[FP Mul]
+    FP_DIV[FP DIV]
+    MUL[MUL/DIV]
+    MEM[MEM]
+    WB[WB]
+
+    IF -->| | ID
+    ID -->| | MUL
+    ID -->| | FP_DIV
+    ID -->| | INT_OP
+    ID -->| | FP_ADD
+    ID -->| | FP_MUL
+    MUL -->| | MEM
+    INT_OP -->| | MEM
+    FP_ADD -->| | MEM
+    FP_MUL -->| | MEM
+    FP_DIV -->| | MEM
+    MEM -->| | WB</pre>
 <p>假设我们现在有这样一段汇编代码，</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">add    a0, a1  --&gt; integer unit</span><br><span class="line">mul    a2, a3  --&gt; mul/div</span><br><span class="line">fp_mul a4, a5  --&gt; fp mul</span><br><span class="line">fp_div a6, a7  --&gt; fp div</span><br></pre></td></tr></table></figure>
 <p>当每条指令走过 ID 阶段以后，会进入各自的功能单元执行，互不干扰。</p>
@@ -124,7 +155,46 @@
 <p>如果 mul 指令不能在一个周期完成执行，下一条 mul 就会进入在 MUL 功能单元之前被阻塞住，也就是出现了 pipeline 暂停的行为。</p>
 <p>上述对 MUL功能单元的描述，意思就是说，这个功能单元是非流水线化的（Not-Pipelined）。</p>
 <p>显然这种 pipeline 是非常慢的，会出现大量因为功能单元被占用导致的流水线暂停，所以这里我们可以引入流水线化的功能单元（Pipelined function unit）。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    INT_OP[Integer Unit]</span><br><span class="line">    FP_ADD0[FP Add/Sub 0]</span><br><span class="line">    FP_ADD1[FP Add/Sub 1]</span><br><span class="line">    FP_ADD2[FP Add/Sub 2]</span><br><span class="line">    FP_MUL0[FP Mul 0]</span><br><span class="line">    FP_MUL1[FP Mul 1]</span><br><span class="line">    FP_MUL2[FP Mul 2]</span><br><span class="line">    FP_MUL3[FP Mul 3]</span><br><span class="line">    FP_DIV[FP DIV]</span><br><span class="line">    MUL0[MUL/DIV0]</span><br><span class="line">    MUL1[MUL/DIV1]</span><br><span class="line">    MUL2[MUL/DIV2]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt;| | ID</span><br><span class="line">    ID --&gt;| | MUL0</span><br><span class="line">    ID --&gt;| | FP_DIV</span><br><span class="line">    ID --&gt;| | INT_OP</span><br><span class="line">    ID --&gt;| | FP_ADD0</span><br><span class="line">    ID --&gt;| | FP_MUL0</span><br><span class="line">    INT_OP --&gt;| | MEM</span><br><span class="line">    MUL2 --&gt;| | MEM</span><br><span class="line">    FP_ADD2 --&gt;| | MEM</span><br><span class="line">    FP_MUL3 --&gt;| | MEM</span><br><span class="line">    FP_DIV --&gt;| | MEM</span><br><span class="line">    MEM --&gt;| | WB</span><br><span class="line"></span><br><span class="line">    MUL0 --&gt; MUL1 </span><br><span class="line">    MUL1 --&gt; MUL2</span><br><span class="line"></span><br><span class="line">    FP_ADD0 --&gt; FP_ADD1</span><br><span class="line">    FP_ADD1 --&gt; FP_ADD2</span><br><span class="line"></span><br><span class="line">    FP_MUL0 --&gt; FP_MUL1</span><br><span class="line">    FP_MUL1 --&gt; FP_MUL2</span><br><span class="line">    FP_MUL2 --&gt; FP_MUL3</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">flowchart LR
+    IF[IF]
+    ID[ID]
+    INT_OP[Integer Unit]
+    FP_ADD0[FP Add/Sub 0]
+    FP_ADD1[FP Add/Sub 1]
+    FP_ADD2[FP Add/Sub 2]
+    FP_MUL0[FP Mul 0]
+    FP_MUL1[FP Mul 1]
+    FP_MUL2[FP Mul 2]
+    FP_MUL3[FP Mul 3]
+    FP_DIV[FP DIV]
+    MUL0[MUL/DIV0]
+    MUL1[MUL/DIV1]
+    MUL2[MUL/DIV2]
+    MEM[MEM]
+    WB[WB]
+
+    IF -->| | ID
+    ID -->| | MUL0
+    ID -->| | FP_DIV
+    ID -->| | INT_OP
+    ID -->| | FP_ADD0
+    ID -->| | FP_MUL0
+    INT_OP -->| | MEM
+    MUL2 -->| | MEM
+    FP_ADD2 -->| | MEM
+    FP_MUL3 -->| | MEM
+    FP_DIV -->| | MEM
+    MEM -->| | WB
+
+    MUL0 --> MUL1 
+    MUL1 --> MUL2
+
+    FP_ADD0 --> FP_ADD1
+    FP_ADD1 --> FP_ADD2
+
+    FP_MUL0 --> FP_MUL1
+    FP_MUL1 --> FP_MUL2
+    FP_MUL2 --> FP_MUL3</pre>
 <p>如上图，FP Mul 单元，Mul/Div 单元以及 FP Add/Sub 单元均已被流水线化。</p>
 <p>当再次出现如下顺序的汇编时，流水线将不会因为资源占用导致暂停了。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mul a0, a1</span><br><span class="line">mul a2, a3</span><br></pre></td></tr></table></figure>
@@ -138,24 +208,85 @@
 <p>让我们来看一个真实的 pipeline，这是 andes-d45 的 pipeline。</p>
 <p><img src="../../img/sched-model-draft/image-20250516164650839.png" alt="image-20250516164650839"></p>
 <p>对应的 pipeline 简化图，</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    %% Issue Paths</span><br><span class="line">    Issue0[Issue Path 0]</span><br><span class="line">    Issue1[Issue Path 1]</span><br><span class="line"></span><br><span class="line">    %% Pipelines# Sched-model draft</span><br><span class="line"></span><br><span class="line">## Framework</span><br><span class="line"></span><br><span class="line">1. in-order pipeline and pipeline stalls.</span><br><span class="line">2. what we need in scheduling-model and how gcc and llvm represent it.</span><br><span class="line">3. write a scheduling-model.</span><br><span class="line">4. adjusting your scheduling-model for better performance.</span><br><span class="line">5. out-of-order blogs recommendation.</span><br><span class="line"></span><br><span class="line">## Extended in-order pipeline</span><br><span class="line"></span><br><span class="line">### Extended EX stage pipeline</span><br><span class="line"></span><br><span class="line">我不想在这里讨论基本的五级顺序流水线概念，你可以在任何一本介绍计算机体系结构的书上找到相关的内容，所以我会假设你已经了解基本的顺序流水线知识、流水线冒险（结构冒险、数据冒险、控制冒险）、数据前推，如果你对提到的任何关键词有疑问，请先补充相关的知识；）</span><br><span class="line"></span><br><span class="line">```mermaid</span><br><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    EX[EX]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt; ID</span><br><span class="line">    ID --&gt; EX</span><br><span class="line">    EX --&gt; MEM</span><br><span class="line">    MEM --&gt; WB</span><br></pre></td></tr></table></figure>
-<p>基本的五级流水线（取指，译码，执行，访存，写回）由于做了简化，并没有暴露其中的细节，从图中看起来所有的执行单元被抽象成一个 EX stage，而真实的 cpu pipeline 不仅要处理基本的整数运算，还需要处理浮点运算以及它们各自的加减乘除，会包含一些更复杂的功能单元，比如乘法器，浮点加法器等。</p>
-<p>假设我们有一个可以处理各种整数运算，浮点加减乘除运算的 pipeline，从黑盒子的角度来看，它可能长成这个样子。</p>
-<blockquote>
-<p>不同硬件实现不同，可能有些 pipeline 会把整数乘法单元和除法单元分开。</p>
-</blockquote>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    INT_OP[Integer Unit]</span><br><span class="line">    FP_ADD[FP Add/Sub]</span><br><span class="line">    FP_MUL[FP Mul]</span><br><span class="line">    FP_DIV[FP DIV]</span><br><span class="line">    MUL[MUL/DIV]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt;| | ID</span><br><span class="line">    ID --&gt;| | MUL</span><br><span class="line">    ID --&gt;| | FP_DIV</span><br><span class="line">    ID --&gt;| | INT_OP</span><br><span class="line">    ID --&gt;| | FP_ADD</span><br><span class="line">    ID --&gt;| | FP_MUL</span><br><span class="line">    MUL --&gt;| | MEM</span><br><span class="line">    INT_OP --&gt;| | MEM</span><br><span class="line">    FP_ADD --&gt;| | MEM</span><br><span class="line">    FP_MUL --&gt;| | MEM</span><br><span class="line">    FP_DIV --&gt;| | MEM</span><br><span class="line">    MEM --&gt;| | WB</span><br></pre></td></tr></table></figure>
-<p>假设我们现在有这样一段汇编代码，</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">add    a0, a1  --&gt; integer unit</span><br><span class="line">mul    a2, a3  --&gt; mul/div</span><br><span class="line">fp_mul a4, a5  --&gt; fp mul</span><br><span class="line">fp_div a6, a7  --&gt; fp div</span><br></pre></td></tr></table></figure>
-<p>当每条指令走过 ID 阶段以后，会进入各自的功能单元执行，互不干扰。</p>
-<h3 id="Pipelined-or-Not-Pipelined-2">Pipelined or Not-Pipelined</h3>
-<p>由于存在长周期指令，比如乘法，除法指令，基本上不可能一个周期完成，所以每个功能单元的占用时间是不同的。</p>
-<p>假设目前我们所有的功能单元都是进入一条指令以后就不能再进入第二条指令了，也就是说，当出现如下顺序的汇编时，</p>
+<pre class="mermaid">flowchart LR
+    %% Issue Paths
+    Issue0[Issue Path 0]
+    Issue1[Issue Path 1]
+
+    %% Pipelines# Sched-model draft
+
+## Framework
+
+1. in-order pipeline and pipeline stalls.
+2. what we need in scheduling-model and how gcc and llvm represent it.
+3. write a scheduling-model.
+4. adjusting your scheduling-model for better performance.
+5. out-of-order blogs recommendation.
+
+## Extended in-order pipeline
+
+### Extended EX stage pipeline
+
+我不想在这里讨论基本的五级顺序流水线概念，你可以在任何一本介绍计算机体系结构的书上找到相关的内容，所以我会假设你已经了解基本的顺序流水线知识、流水线冒险（结构冒险、数据冒险、控制冒险）、数据前推，如果你对提到的任何关键词有疑问，请先补充相关的知识；）
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    EX[EX]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt; ID</span><br><span class="line">    ID --&gt; EX</span><br><span class="line">    EX --&gt; MEM</span><br><span class="line">    MEM --&gt; WB&lt;/pre&gt;</span><br><span class="line"></span><br><span class="line">基本的五级流水线（取指，译码，执行，访存，写回）由于做了简化，并没有暴露其中的细节，从图中看起来所有的执行单元被抽象成一个 EX stage，而真实的 cpu pipeline 不仅要处理基本的整数运算，还需要处理浮点运算以及它们各自的加减乘除，会包含一些更复杂的功能单元，比如乘法器，浮点加法器等。</span><br><span class="line"></span><br><span class="line">假设我们有一个可以处理各种整数运算，浮点加减乘除运算的 pipeline，从黑盒子的角度来看，它可能长成这个样子。</span><br><span class="line"></span><br><span class="line">&gt; 不同硬件实现不同，可能有些 pipeline 会把整数乘法单元和除法单元分开。</span><br><span class="line"></span><br><span class="line">&lt;pre class=&quot;mermaid&quot;&gt;flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    INT_OP[Integer Unit]</span><br><span class="line">    FP_ADD[FP Add/Sub]</span><br><span class="line">    FP_MUL[FP Mul]</span><br><span class="line">    FP_DIV[FP DIV]</span><br><span class="line">    MUL[MUL/DIV]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt;| | ID</span><br><span class="line">    ID --&gt;| | MUL</span><br><span class="line">    ID --&gt;| | FP_DIV</span><br><span class="line">    ID --&gt;| | INT_OP</span><br><span class="line">    ID --&gt;| | FP_ADD</span><br><span class="line">    ID --&gt;| | FP_MUL</span><br><span class="line">    MUL --&gt;| | MEM</span><br><span class="line">    INT_OP --&gt;| | MEM</span><br><span class="line">    FP_ADD --&gt;| | MEM</span><br><span class="line">    FP_MUL --&gt;| | MEM</span><br><span class="line">    FP_DIV --&gt;| | MEM</span><br><span class="line">    MEM --&gt;| | WB&lt;/pre&gt;</span><br><span class="line"></span><br><span class="line">假设我们现在有这样一段汇编代码，</span><br><span class="line"></span><br><span class="line">```asm</span><br><span class="line">add    a0, a1  --&gt; integer unit</span><br><span class="line">mul    a2, a3  --&gt; mul/div</span><br><span class="line">fp_mul a4, a5  --&gt; fp mul</span><br><span class="line">fp_div a6, a7  --&gt; fp div</span><br></pre></td></tr></table></figure>
+
+当每条指令走过 ID 阶段以后，会进入各自的功能单元执行，互不干扰。
+
+### Pipelined or Not-Pipelined
+
+由于存在长周期指令，比如乘法，除法指令，基本上不可能一个周期完成，所以每个功能单元的占用时间是不同的。
+
+假设目前我们所有的功能单元都是进入一条指令以后就不能再进入第二条指令了，也就是说，当出现如下顺序的汇编时，
+
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mul a0, a1</span><br><span class="line">mul a2, a3</span><br></pre></td></tr></table></figure>
-<p>如果 mul 指令不能在一个周期完成执行，下一条 mul 就会进入在 MUL 功能单元之前被阻塞住，也就是出现了 pipeline 暂停的行为。</p>
-<p>上述对 MUL功能单元的描述，意思就是说，这个功能单元是非流水线化的（Not-Pipelined）。</p>
-<p>显然这种 pipeline 是非常慢的，会出现大量因为功能单元被占用导致的流水线暂停，所以这里我们可以引入流水线化的功能单元（Pipelined function unit）。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    IF[IF]</span><br><span class="line">    ID[ID]</span><br><span class="line">    INT_OP[Integer Unit]</span><br><span class="line">    FP_ADD0[FP Add/Sub 0]</span><br><span class="line">    FP_ADD1[FP Add/Sub 1]</span><br><span class="line">    FP_ADD2[FP Add/Sub 2]</span><br><span class="line">    FP_MUL0[FP Mul 0]</span><br><span class="line">    FP_MUL1[FP Mul 1]</span><br><span class="line">    FP_MUL2[FP Mul 2]</span><br><span class="line">    FP_MUL3[FP Mul 3]</span><br><span class="line">    FP_DIV[FP DIV]</span><br><span class="line">    MUL0[MUL/DIV0]</span><br><span class="line">    MUL1[MUL/DIV1]</span><br><span class="line">    MUL2[MUL/DIV2]</span><br><span class="line">    MEM[MEM]</span><br><span class="line">    WB[WB]</span><br><span class="line"></span><br><span class="line">    IF --&gt;| | ID</span><br><span class="line">    ID --&gt;| | MUL0</span><br><span class="line">    ID --&gt;| | FP_DIV</span><br><span class="line">    ID --&gt;| | INT_OP</span><br><span class="line">    ID --&gt;| | FP_ADD0</span><br><span class="line">    ID --&gt;| | FP_MUL0</span><br><span class="line">    INT_OP --&gt;| | MEM</span><br><span class="line">    MUL2 --&gt;| | MEM</span><br><span class="line">    FP_ADD2 --&gt;| | MEM</span><br><span class="line">    FP_MUL3 --&gt;| | MEM</span><br><span class="line">    FP_DIV --&gt;| | MEM</span><br><span class="line">    MEM --&gt;| | WB</span><br><span class="line"></span><br><span class="line">    MUL0 --&gt; MUL1 </span><br><span class="line">    MUL1 --&gt; MUL2</span><br><span class="line"></span><br><span class="line">    FP_ADD0 --&gt; FP_ADD1</span><br><span class="line">    FP_ADD1 --&gt; FP_ADD2</span><br><span class="line"></span><br><span class="line">    FP_MUL0 --&gt; FP_MUL1</span><br><span class="line">    FP_MUL1 --&gt; FP_MUL2</span><br><span class="line">    FP_MUL2 --&gt; FP_MUL3</span><br></pre></td></tr></table></figure>
+
+如果 mul 指令不能在一个周期完成执行，下一条 mul 就会进入在 MUL 功能单元之前被阻塞住，也就是出现了 pipeline 暂停的行为。 
+
+上述对 MUL功能单元的描述，意思就是说，这个功能单元是非流水线化的（Not-Pipelined）。
+
+显然这种 pipeline 是非常慢的，会出现大量因为功能单元被占用导致的流水线暂停，所以这里我们可以引入流水线化的功能单元（Pipelined function unit）。
+
+<pre class="mermaid">flowchart LR
+    IF[IF]
+    ID[ID]
+    INT_OP[Integer Unit]
+    FP_ADD0[FP Add/Sub 0]
+    FP_ADD1[FP Add/Sub 1]
+    FP_ADD2[FP Add/Sub 2]
+    FP_MUL0[FP Mul 0]
+    FP_MUL1[FP Mul 1]
+    FP_MUL2[FP Mul 2]
+    FP_MUL3[FP Mul 3]
+    FP_DIV[FP DIV]
+    MUL0[MUL/DIV0]
+    MUL1[MUL/DIV1]
+    MUL2[MUL/DIV2]
+    MEM[MEM]
+    WB[WB]
+
+    IF -->| | ID
+    ID -->| | MUL0
+    ID -->| | FP_DIV
+    ID -->| | INT_OP
+    ID -->| | FP_ADD0
+    ID -->| | FP_MUL0
+    INT_OP -->| | MEM
+    MUL2 -->| | MEM
+    FP_ADD2 -->| | MEM
+    FP_MUL3 -->| | MEM
+    FP_DIV -->| | MEM
+    MEM -->| | WB
+
+    MUL0 --> MUL1 
+    MUL1 --> MUL2
+
+    FP_ADD0 --> FP_ADD1
+    FP_ADD1 --> FP_ADD2
+
+    FP_MUL0 --> FP_MUL1
+    FP_MUL1 --> FP_MUL2
+    FP_MUL2 --> FP_MUL3</pre>
 <p>如上图，FP Mul 单元，Mul/Div 单元以及 FP Add/Sub 单元均已被流水线化。</p>
 <p>当再次出现如下顺序的汇编时，流水线将不会因为资源占用导致暂停了。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mul a0, a1</span><br><span class="line">mul a2, a3</span><br></pre></td></tr></table></figure>
@@ -169,14 +300,71 @@
 <p>让我们来看一个真实的 pipeline，这是 andes-d45 的 pipeline。</p>
 <p><img src="../../img/sched-model-draft/image-20250516164650839.png" alt="image-20250516164650839"></p>
 <p>对应的 pipeline 简化图，</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">flowchart LR</span><br><span class="line">    %% Issue Paths</span><br><span class="line">    Issue0[Issue Path 0]</span><br><span class="line">    Issue1[Issue Path 1]</span><br><span class="line"></span><br><span class="line">    %% Pipelines</span><br><span class="line">    ALU0[ALU0]</span><br><span class="line">    ALU1[ALU1]</span><br><span class="line">    LDST[AGU + LD/ST]</span><br><span class="line">    FP[FP Pipeline]</span><br><span class="line">    MULDIV[MUL/DIV Pipeline]</span><br><span class="line">    DSP[DSP Pipeline]</span><br><span class="line"></span><br><span class="line">    %% Connections</span><br><span class="line">    Issue0 --&gt; ALU0</span><br><span class="line">    Issue0 --&gt; ALU1</span><br><span class="line">    Issue0 --&gt; LDST</span><br><span class="line">    Issue0 --&gt; FP</span><br><span class="line">    Issue0 --&gt; MULDIV</span><br><span class="line">    Issue0 --&gt; DSP</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">flowchart LR
+    %% Issue Paths
+    Issue0[Issue Path 0]
+    Issue1[Issue Path 1]
+
+    %% Pipelines
+    ALU0[ALU0]
+    ALU1[ALU1]
+    LDST[AGU + LD/ST]
+    FP[FP Pipeline]
+    MULDIV[MUL/DIV Pipeline]
+    DSP[DSP Pipeline]
+
+    %% Connections
+    Issue0 --> ALU0
+    Issue0 --> ALU1
+    Issue0 --> LDST
+    Issue0 --> FP
+    Issue0 --> MULDIV
+    Issue0 --> DSP</pre>
 <p>d45 由于是双发 pipeline，一个周期会发射两条指令，考虑到 alu 指令是最频繁的，为了可以同时双发两条 alu 指令，它这里设置了两条 ALU通路，也就是说，当出现下面两条汇编指令同时发射时，它们可以分别占用两条 ALU通路，而不会导致流水线暂停。（可以想到，如果只有一条 ALU 通路的话，那么这里两条 add 指令就没法同时发射了，因为会有资源冲突，流水线会暂停）</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">add a0, a1  --&gt; slot 0 -- use ALU0</span><br><span class="line">add a2, a3  --&gt; slot 1 -- use ALU1</span><br></pre></td></tr></table></figure>
 <p>d45 其他的部分并没有什么特殊的地方，一个 LD/ST 功能单元，一个 MUL/DIV 功能单元，一个 DSP 功能单元…</p>
 <p>另一个是 sifive-p600 的 pipeline，它是一个乱序 4 发射的 pipeline，</p>
 <p><img src="https://myhsu.xyz/images/p670-uarch.png" alt="img"></p>
 <p>从图上看，可能会感觉功能单元这么多又这么复杂，但其实不然，这是一个很简单的 pipeline，我们先将乱序以及一些Cache，prefetchr，分支预测部分剖除，会得到下面这样的一个 pipeline 图。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">    %% Issue paths</span><br><span class="line">    Issue0[Issue Path 0]</span><br><span class="line">    Issue1[Issue Path 1]</span><br><span class="line">    Issue2[Issue Path 2]</span><br><span class="line">    Issue3[Issue Path 3]</span><br><span class="line"></span><br><span class="line">    %% ALU Pipelines</span><br><span class="line">    ALU_FULL[ALU + MUL + DIV + I2F]</span><br><span class="line">    ALU_ONLY[ALU]</span><br><span class="line">    BR0[BR]</span><br><span class="line">    BR1[BR]</span><br><span class="line"></span><br><span class="line">    %% LD/SD Pipelines</span><br><span class="line">    LDST0[AGU + LD/ST]</span><br><span class="line">    LDST1[AGU + LD/ST]</span><br><span class="line"></span><br><span class="line">    %% FP Pipelines</span><br><span class="line">    FP0[FP: FMAC + FADD + FMUL + I2F]</span><br><span class="line">    FP1[FP: FMAC + FADD + FMUL + FDIV]</span><br><span class="line"></span><br><span class="line">    %% Vector Pipelines</span><br><span class="line">    VEC0[Vector: ALU + DIV]</span><br><span class="line">    VEC1[Vector: ALU + V2S]</span><br><span class="line"></span><br><span class="line">    %% Connections from Issue paths</span><br><span class="line">    Issue0 --&gt; ALU_FULL</span><br><span class="line">    Issue0 --&gt; ALU_ONLY</span><br><span class="line">    Issue0 --&gt; BR0</span><br><span class="line">    Issue0 --&gt; BR1</span><br><span class="line"></span><br><span class="line">    Issue0 --&gt; LDST0</span><br><span class="line">    Issue0 --&gt; LDST1</span><br><span class="line"></span><br><span class="line">    Issue0 --&gt; FP0</span><br><span class="line">    Issue0 --&gt; FP1</span><br><span class="line"></span><br><span class="line">    Issue0 --&gt; VEC0</span><br><span class="line">    Issue0 --&gt; VEC1</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">flowchart TD
+    %% Issue paths
+    Issue0[Issue Path 0]
+    Issue1[Issue Path 1]
+    Issue2[Issue Path 2]
+    Issue3[Issue Path 3]
+
+    %% ALU Pipelines
+    ALU_FULL[ALU + MUL + DIV + I2F]
+    ALU_ONLY[ALU]
+    BR0[BR]
+    BR1[BR]
+
+    %% LD/SD Pipelines
+    LDST0[AGU + LD/ST]
+    LDST1[AGU + LD/ST]
+
+    %% FP Pipelines
+    FP0[FP: FMAC + FADD + FMUL + I2F]
+    FP1[FP: FMAC + FADD + FMUL + FDIV]
+
+    %% Vector Pipelines
+    VEC0[Vector: ALU + DIV]
+    VEC1[Vector: ALU + V2S]
+
+    %% Connections from Issue paths
+    Issue0 --> ALU_FULL
+    Issue0 --> ALU_ONLY
+    Issue0 --> BR0
+    Issue0 --> BR1
+
+    Issue0 --> LDST0
+    Issue0 --> LDST1
+
+    Issue0 --> FP0
+    Issue0 --> FP1
+
+    Issue0 --> VEC0
+    Issue0 --> VEC1</pre>
 <blockquote>
 <p>功能单元的名字和功能不重要，对调度来说，都只是功能单元。</p>
 </blockquote>
@@ -211,7 +399,45 @@ Issue0 --&gt; DSP
 <p>另一个是 sifive-p600 的 pipeline，它是一个乱序 4 发射的 pipeline，</p>
 <p><img src="https://myhsu.xyz/images/p670-uarch.png" alt="img"></p>
 <p>从图上看，可能会感觉功能单元这么多又这么复杂，但其实不然，这是一个很简单的 pipeline，我们先将乱序以及一些Cache，prefetchr，分支预测部分剖除，会得到下面这样的一个 pipeline 图。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">flowchart TD</span><br><span class="line">    %% Issue paths</span><br><span class="line">    Issue0[Issue Path 0]</span><br><span class="line">    Issue1[Issue Path 1]</span><br><span class="line">    Issue2[Issue Path 2]</span><br><span class="line">    Issue3[Issue Path 3]</span><br><span class="line"></span><br><span class="line">    %% ALU Pipelines</span><br><span class="line">    ALU_FULL[ALU + MUL + DIV + I2F]</span><br><span class="line">    ALU_ONLY[ALU]</span><br><span class="line">    BR0[BR]</span><br><span class="line">    BR1[BR]</span><br><span class="line"></span><br><span class="line">    %% LD/SD Pipelines</span><br><span class="line">    LDST0[AGU + LD/ST]</span><br><span class="line">    LDST1[AGU + LD/ST]</span><br><span class="line"></span><br><span class="line">    %% FP Pipelines</span><br><span class="line">    FP0[FP: FMAC + FADD + FMUL + I2F]</span><br><span class="line">    FP1[FP: FMAC + FADD + FMUL + FDIV]</span><br><span class="line"></span><br><span class="line">    %% Vector Pipelines</span><br><span class="line">    VEC0[Vector: ALU + DIV]</span><br><span class="line">    VEC1[Vector: ALU + V2S]</span><br><span class="line"></span><br><span class="line">    %% Connections from Issue paths</span><br><span class="line">    Issue0 --&gt; ALU_FULL</span><br><span class="line">    Issue0 --&gt; ALU_ONLY</span><br><span class="line">    Issue0 --&gt; BR0</span><br><span class="line">    Issue0 --&gt; BR1</span><br><span class="line"></span><br><span class="line">    Issue0 --&gt; LDST0</span><br><span class="line">    Issue0 --&gt; LDST1</span><br><span class="line"></span><br><span class="line">    Issue0 --&gt; FP0</span><br><span class="line">    Issue0 --&gt; FP1</span><br><span class="line"></span><br><span class="line">    Issue0 --&gt; VEC0</span><br><span class="line">    Issue0 --&gt; VEC1</span><br></pre></td></tr></table></figure>
+<pre class="mermaid">flowchart TD
+    %% Issue paths
+    Issue0[Issue Path 0]
+    Issue1[Issue Path 1]
+    Issue2[Issue Path 2]
+    Issue3[Issue Path 3]
+
+    %% ALU Pipelines
+    ALU_FULL[ALU + MUL + DIV + I2F]
+    ALU_ONLY[ALU]
+    BR0[BR]
+    BR1[BR]
+
+    %% LD/SD Pipelines
+    LDST0[AGU + LD/ST]
+    LDST1[AGU + LD/ST]
+
+    %% FP Pipelines
+    FP0[FP: FMAC + FADD + FMUL + I2F]
+    FP1[FP: FMAC + FADD + FMUL + FDIV]
+
+    %% Vector Pipelines
+    VEC0[Vector: ALU + DIV]
+    VEC1[Vector: ALU + V2S]
+
+    %% Connections from Issue paths
+    Issue0 --> ALU_FULL
+    Issue0 --> ALU_ONLY
+    Issue0 --> BR0
+    Issue0 --> BR1
+
+    Issue0 --> LDST0
+    Issue0 --> LDST1
+
+    Issue0 --> FP0
+    Issue0 --> FP1
+
+    Issue0 --> VEC0
+    Issue0 --> VEC1</pre>
 <blockquote>
 <p>功能单元的名字和功能不重要，对调度来说，都只是功能单元。</p>
 </blockquote>
