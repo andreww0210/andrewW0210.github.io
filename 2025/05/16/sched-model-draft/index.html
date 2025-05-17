@@ -1,35 +1,225 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><meta><title>sched-model-draft - andreww</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="andreww"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="andreww"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="Framework·  in-order pipeline and pipeline stalls. what we need in scheduling-model and how gcc and llvm represent it. write a scheduling-model. adjusting your scheduling-model for better performance."><meta property="og:type" content="blog"><meta property="og:title" content="sched-model-draft"><meta property="og:url" content="http://example.com/2025/05/16/sched-model-draft/"><meta property="og:site_name" content="andreww"><meta property="og:description" content="Framework·  in-order pipeline and pipeline stalls. what we need in scheduling-model and how gcc and llvm represent it. write a scheduling-model. adjusting your scheduling-model for better performance."><meta property="og:locale" content="en_US"><meta property="og:image" content="http://example.com/2025/05/img/sched-model-draft/image-20250516164650839.png"><meta property="og:image" content="https://myhsu.xyz/images/p670-uarch.png"><meta property="article:published_time" content="2025-05-16T14:19:29.000Z"><meta property="article:modified_time" content="2025-05-16T15:18:30.203Z"><meta property="article:author" content="yinghao"><meta property="article:tag" content="instruction scheduling"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://example.com/2025/05/img/sched-model-draft/image-20250516164650839.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://example.com/2025/05/16/sched-model-draft/"},"headline":"sched-model-draft","image":["http://example.com/2025/05/img/sched-model-draft/image-20250516164650839.png","https://myhsu.xyz/images/p670-uarch.png"],"datePublished":"2025-05-16T14:19:29.000Z","dateModified":"2025-05-16T15:18:30.203Z","author":{"@type":"Person","name":"yinghao"},"publisher":{"@type":"Organization","name":"andreww","logo":{"@type":"ImageObject","url":"http://example.com/img/logo.svg"}},"description":"Framework·  in-order pipeline and pipeline stalls. what we need in scheduling-model and how gcc and llvm represent it. write a scheduling-model. adjusting your scheduling-model for better performance."}</script><link rel="canonical" href="http://example.com/2025/05/16/sched-model-draft/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link data-pjax rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link data-pjax rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!--!--><!--!--><!--!--><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@1.10.0/dist/css/lightgallery.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/css/justifiedGallery.min.css"><!--!--><!--!--><!--!--><style>.pace{-webkit-pointer-events:none;pointer-events:none;-webkit-user-select:none;-moz-user-select:none;user-select:none}.pace-inactive{display:none}.pace .pace-progress{background:#3273dc;position:fixed;z-index:2000;top:0;right:100%;width:100%;height:2px}</style><script src="https://cdn.jsdelivr.net/npm/pace-js@1.2.4/pace.min.js"></script><!--!--><!--!--><!-- hexo injector head_end start --><script>
-  (function () {
-      function switchTab() {
-          if (!location.hash) {
-            return;
-          }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 7.3.0">
 
-          const id = '#' + CSS.escape(location.hash.substring(1));
-          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
-          if (!$tabMenu) {
-            return;
-          }
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
 
-          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
-          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
-          Array.from($tabMenuContainer.querySelectorAll('a'))
-              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
-              .forEach($content => $content.classList.add('is-hidden'));
+<link rel="stylesheet" href="/css/main.css">
 
-          if ($tabMenu) {
-              $tabMenu.parentElement.classList.add('is-active');
-          }
-          const $activeTab = document.querySelector(id);
-          if ($activeTab) {
-              $activeTab.classList.remove('is-hidden');
-          }
-      }
-      switchTab();
-      window.addEventListener('hashchange', switchTab, false);
-  })();
-  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.3.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/logo.svg" alt="andreww" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a><a class="navbar-item" href="/about">About</a></div><div class="navbar-end"><a class="navbar-item" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/ppoffice/hexo-theme-icarus"><i class="fab fa-github"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2025-05-16T14:19:29.000Z" title="5/16/2025, 10:19:29 PM">2025-05-16</time></span><span class="level-item">Updated&nbsp;<time dateTime="2025-05-16T15:18:30.203Z" title="5/16/2025, 11:18:30 PM">2025-05-16</time></span><span class="level-item">12 minutes read (About 1847 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">sched-model-draft</h1><div class="content"><h2 id="Framework">Framework<a class="anchor" href="#Framework">·</a></h2>
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha256-dABdfBfUoC8vJUBOwGVdm8L9qlMWaHTIfXt+7GnZCIo=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"example.com","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.23.0","exturl":false,"sidebar":{"position":"left","width_expanded":320,"width_dual_column":240,"display":"post","padding":18,"offset":12},"hljswrap":true,"codeblock":{"theme":{"light":"default","dark":"stackoverflow-dark"},"prism":{"light":"prism","dark":"prism-dark"},"copy_button":{"enable":false,"style":null},"fold":{"enable":false,"height":500},"language":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"duration":200,"transition":{"menu_item":"fadeInDown","post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js" defer></script>
+
+    <meta name="description" content="Framework·  in-order pipeline and pipeline stalls. what we need in scheduling-model and how gcc and llvm represent it. write a scheduling-model. adjusting your scheduling-model for better performance.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="sched-model-draft">
+<meta property="og:url" content="http://example.com/2025/05/16/sched-model-draft/index.html">
+<meta property="og:site_name" content="andreww">
+<meta property="og:description" content="Framework·  in-order pipeline and pipeline stalls. what we need in scheduling-model and how gcc and llvm represent it. write a scheduling-model. adjusting your scheduling-model for better performance.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="http://example.com/2025/05/img/sched-model-draft/image-20250516164650839.png">
+<meta property="og:image" content="https://myhsu.xyz/images/p670-uarch.png">
+<meta property="article:published_time" content="2025-05-16T14:19:29.000Z">
+<meta property="article:modified_time" content="2025-05-17T04:32:17.267Z">
+<meta property="article:author" content="yinghao">
+<meta property="article:tag" content="instruction scheduling">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2025/05/img/sched-model-draft/image-20250516164650839.png">
+
+
+<link rel="canonical" href="http://example.com/2025/05/16/sched-model-draft/">
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"http://example.com/2025/05/16/sched-model-draft/","path":"2025/05/16/sched-model-draft/","title":"sched-model-draft"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>sched-model-draft | andreww</title>
+  
+
+
+
+
+
+
+
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous" defer></script>
+<script src="/js/utils.js" defer></script><script src="/js/motion.js" defer></script><script src="/js/sidebar.js" defer></script><script src="/js/next-boot.js" defer></script>
+
+  
+
+  <script class="next-config" data-name="mermaid" type="application/json">{"enable":true,"theme":{"light":"default","dark":"dark"},"js":{"url":"https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.5.0/mermaid.min.js","integrity":"sha256-2obLuIPcceEhkE3G09G33hBdmE55ivVcZUlcKcGNHjU="}}</script>
+  <script src="/js/third-party/tags/mermaid.js" defer></script>
+
+
+
+
+
+  
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <div class="column">
+      <header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">andreww</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger" aria-label="Search" role="button">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</header>
+        
+  
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Framework"><span class="nav-number">1.</span> <span class="nav-text">Framework</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Extended-in-order-pipeline"><span class="nav-number">2.</span> <span class="nav-text">Extended in-order pipeline</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Extended-EX-stage-pipeline"><span class="nav-number">2.1.</span> <span class="nav-text">Extended EX stage pipeline</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pipelined-or-Not-Pipelined"><span class="nav-number">2.2.</span> <span class="nav-text">Pipelined or Not-Pipelined</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Real-Pipeline"><span class="nav-number">2.3.</span> <span class="nav-text">Real Pipeline</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pipeline-Stalls"><span class="nav-number">2.4.</span> <span class="nav-text">Pipeline Stalls</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">yinghao</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+
+        </div>
+      </div>
+    </div>
+
+    
+  </aside>
+
+
+    </div>
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2025/05/16/sched-model-draft/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="yinghao">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="andreww">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="sched-model-draft | andreww">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          sched-model-draft
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2025-05-16 22:19:29" itemprop="dateCreated datePublished" datetime="2025-05-16T22:19:29+08:00">2025-05-16</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2025-05-17 12:32:17" itemprop="dateModified" datetime="2025-05-17T12:32:17+08:00">2025-05-17</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody"><h2 id="Framework">Framework<a class="anchor" href="#Framework">·</a></h2>
 <ol>
 <li>in-order pipeline and pipeline stalls.</li>
 <li>what we need in scheduling-model and how gcc and llvm represent it.</li>
@@ -39,24 +229,24 @@
 </ol>
 <h2 id="Extended-in-order-pipeline">Extended in-order pipeline<a class="anchor" href="#Extended-in-order-pipeline">·</a></h2>
 <h3 id="Extended-EX-stage-pipeline">Extended EX stage pipeline<a class="anchor" href="#Extended-EX-stage-pipeline">·</a></h3>
-<p>我不想在这里讨论基本的五级顺序流水线概念，你可以在任何一本介绍计算机体系结构的书上找到相关的内容，所以我会假设你已经了解基本的顺序流水线知识、流水线冒险（结构冒险、数据冒险、控制冒险）、数据前推，如果你对提到的任何关键词有疑问，请先补充相关的知识；）</p>
-<pre class="mermaid">flowchart LR
+<p>我不想在这里讨论基本的五级顺序流水线概念，你可以在任何一本介绍计算机体系结构的书上找到相关的内容，所以我会假设你已经了解基本的顺序流水线知识、流水线冒险（结构冒险、数据冒险、控制冒险）、数据前推，如果你对提到的任何关键词有疑问，请先补充相关的知识 😉</p>
+<pre><code class="highlight mermaid">flowchart LR
     IF[IF]
     ID[ID]
     EX[EX]
     MEM[MEM]
     WB[WB]
 
-    IF --> ID
-    ID --> EX
-    EX --> MEM
-    MEM --> WB</pre>
+    IF --&gt; ID
+    ID --&gt; EX
+    EX --&gt; MEM
+    MEM --&gt; WB</code></pre>
 <p>基本的五级流水线（取指，译码，执行，访存，写回）由于做了简化，并没有暴露其中的细节，从图中看起来所有的执行单元被抽象成一个 EX stage，而真实的 cpu pipeline 不仅要处理基本的整数运算，还需要处理浮点运算以及它们各自的加减乘除，会包含一些更复杂的功能单元，比如乘法器，浮点加法器等。</p>
 <p>假设我们有一个可以处理各种整数运算，浮点加减乘除运算的 pipeline，从黑盒子的角度来看，它可能长成这个样子。</p>
 <blockquote>
 <p>不同硬件实现不同，可能有些 pipeline 会把整数乘法单元和除法单元分开。</p>
 </blockquote>
-<pre class="mermaid">flowchart LR
+<pre><code class="highlight mermaid">flowchart LR
     IF[IF]
     ID[ID]
     INT_OP[Integer Unit]
@@ -67,18 +257,18 @@
     MEM[MEM]
     WB[WB]
 
-    IF -->| | ID
-    ID -->| | MUL
-    ID -->| | FP_DIV
-    ID -->| | INT_OP
-    ID -->| | FP_ADD
-    ID -->| | FP_MUL
-    MUL -->| | MEM
-    INT_OP -->| | MEM
-    FP_ADD -->| | MEM
-    FP_MUL -->| | MEM
-    FP_DIV -->| | MEM
-    MEM -->| | WB</pre>
+    IF --&gt;| | ID
+    ID --&gt;| | MUL
+    ID --&gt;| | FP_DIV
+    ID --&gt;| | INT_OP
+    ID --&gt;| | FP_ADD
+    ID --&gt;| | FP_MUL
+    MUL --&gt;| | MEM
+    INT_OP --&gt;| | MEM
+    FP_ADD --&gt;| | MEM
+    FP_MUL --&gt;| | MEM
+    FP_DIV --&gt;| | MEM
+    MEM --&gt;| | WB</code></pre>
 <p>假设我们现在有这样一段汇编代码，</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">add    a0, a1  --&gt; integer unit</span><br><span class="line">mul    a2, a3  --&gt; mul/div</span><br><span class="line">fp_mul a4, a5  --&gt; fp mul</span><br><span class="line">fp_div a6, a7  --&gt; fp div</span><br></pre></td></tr></table></figure>
 <p>当每条指令走过 ID 阶段以后，会进入各自的功能单元执行，互不干扰。</p>
@@ -89,7 +279,7 @@
 <p>如果 mul 指令不能在一个周期完成执行，下一条 mul 就会进入在 MUL 功能单元之前被阻塞住，也就是出现了 pipeline 暂停的行为。</p>
 <p>上述对 MUL功能单元的描述，意思就是说，这个功能单元是非流水线化的（Not-Pipelined）。</p>
 <p>显然这种 pipeline 是非常慢的，会出现大量因为功能单元被占用导致的流水线暂停，所以这里我们可以引入流水线化的功能单元（Pipelined function unit）。</p>
-<pre class="mermaid">flowchart LR
+<pre><code class="highlight mermaid">flowchart LR
     IF[IF]
     ID[ID]
     INT_OP[Integer Unit]
@@ -107,28 +297,28 @@
     MEM[MEM]
     WB[WB]
 
-    IF -->| | ID
-    ID -->| | MUL0
-    ID -->| | FP_DIV
-    ID -->| | INT_OP
-    ID -->| | FP_ADD0
-    ID -->| | FP_MUL0
-    INT_OP -->| | MEM
-    MUL2 -->| | MEM
-    FP_ADD2 -->| | MEM
-    FP_MUL3 -->| | MEM
-    FP_DIV -->| | MEM
-    MEM -->| | WB
+    IF --&gt;| | ID
+    ID --&gt;| | MUL0
+    ID --&gt;| | FP_DIV
+    ID --&gt;| | INT_OP
+    ID --&gt;| | FP_ADD0
+    ID --&gt;| | FP_MUL0
+    INT_OP --&gt;| | MEM
+    MUL2 --&gt;| | MEM
+    FP_ADD2 --&gt;| | MEM
+    FP_MUL3 --&gt;| | MEM
+    FP_DIV --&gt;| | MEM
+    MEM --&gt;| | WB
 
-    MUL0 --> MUL1 
-    MUL1 --> MUL2
+    MUL0 --&gt; MUL1 
+    MUL1 --&gt; MUL2
 
-    FP_ADD0 --> FP_ADD1
-    FP_ADD1 --> FP_ADD2
+    FP_ADD0 --&gt; FP_ADD1
+    FP_ADD1 --&gt; FP_ADD2
 
-    FP_MUL0 --> FP_MUL1
-    FP_MUL1 --> FP_MUL2
-    FP_MUL2 --> FP_MUL3</pre>
+    FP_MUL0 --&gt; FP_MUL1
+    FP_MUL1 --&gt; FP_MUL2
+    FP_MUL2 --&gt; FP_MUL3</code></pre>
 <p>如上图，FP Mul 单元，Mul/Div 单元以及 FP Add/Sub 单元均已被流水线化。</p>
 <p>当再次出现如下顺序的汇编时，流水线将不会因为资源占用导致暂停了。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mul a0, a1</span><br><span class="line">mul a2, a3</span><br></pre></td></tr></table></figure>
@@ -142,7 +332,7 @@
 <p>让我们来看一个真实的 pipeline，这是 andes-d45 的 pipeline。</p>
 <p><img src="../../img/sched-model-draft/image-20250516164650839.png" alt="image-20250516164650839"></p>
 <p>对应的 pipeline 简化图，</p>
-<pre class="mermaid">flowchart LR
+<pre><code class="highlight mermaid">flowchart LR
     %% Issue Paths
     Issue0[Issue Path 0]
     Issue1[Issue Path 1]
@@ -156,19 +346,19 @@
     DSP[DSP Pipeline]
 
     %% Connections
-    Issue0 --> ALU0
-    Issue0 --> ALU1
-    Issue0 --> LDST
-    Issue0 --> FP
-    Issue0 --> MULDIV
-    Issue0 --> DSP</pre>
+    Issue0 --&gt; ALU0
+    Issue0 --&gt; ALU1
+    Issue0 --&gt; LDST
+    Issue0 --&gt; FP
+    Issue0 --&gt; MULDIV
+    Issue0 --&gt; DSP</code></pre>
 <p>d45 由于是双发 pipeline，一个周期会发射两条指令，考虑到 alu 指令是最频繁的，为了可以同时双发两条 alu 指令，它这里设置了两条 ALU通路，也就是说，当出现下面两条汇编指令同时发射时，它们可以分别占用两条 ALU通路，而不会导致流水线暂停。（可以想到，如果只有一条 ALU 通路的话，那么这里两条 add 指令就没法同时发射了，因为会有资源冲突，流水线会暂停）</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">add a0, a1  --&gt; slot 0 -- use ALU0</span><br><span class="line">add a2, a3  --&gt; slot 1 -- use ALU1</span><br></pre></td></tr></table></figure>
 <p>d45 其他的部分并没有什么特殊的地方，一个 LD/ST 功能单元，一个 MUL/DIV 功能单元，一个 DSP 功能单元…</p>
 <p>另一个是 sifive-p600 的 pipeline，它是一个乱序 4 发射的 pipeline，</p>
 <p><img src="https://myhsu.xyz/images/p670-uarch.png" alt="img"></p>
 <p>从图上看，可能会感觉功能单元这么多又这么复杂，但其实不然，这是一个很简单的 pipeline，我们先将乱序以及一些Cache，prefetchr，分支预测部分剖除，会得到下面这样的一个 pipeline 图。</p>
-<pre class="mermaid">flowchart TD
+<pre><code class="highlight mermaid">flowchart TD
     %% Issue paths
     Issue0[Issue Path 0]
     Issue1[Issue Path 1]
@@ -194,19 +384,19 @@
     VEC1[Vector: ALU + V2S]
 
     %% Connections from Issue paths
-    Issue0 --> ALU_FULL
-    Issue0 --> ALU_ONLY
-    Issue0 --> BR0
-    Issue0 --> BR1
+    Issue0 --&gt; ALU_FULL
+    Issue0 --&gt; ALU_ONLY
+    Issue0 --&gt; BR0
+    Issue0 --&gt; BR1
 
-    Issue0 --> LDST0
-    Issue0 --> LDST1
+    Issue0 --&gt; LDST0
+    Issue0 --&gt; LDST1
 
-    Issue0 --> FP0
-    Issue0 --> FP1
+    Issue0 --&gt; FP0
+    Issue0 --&gt; FP1
 
-    Issue0 --> VEC0
-    Issue0 --> VEC1</pre>
+    Issue0 --&gt; VEC0
+    Issue0 --&gt; VEC1</code></pre>
 <blockquote>
 <p>功能单元的名字和功能不重要，对调度来说，都只是功能单元。</p>
 </blockquote>
@@ -221,48 +411,73 @@
 <li>这里不提及控制冒险，它并不是调度器所能解决的问题</li>
 </ol>
 </blockquote>
-</div><div class="article-licensing box"><div class="licensing-title"><p>sched-model-draft</p><p><a href="http://example.com/2025/05/16/sched-model-draft/">http://example.com/2025/05/16/sched-model-draft/</a></p></div><div class="licensing-meta level is-mobile"><div class="level-left"><div class="level-item is-narrow"><div><h6>Author</h6><p>yinghao</p></div></div><div class="level-item is-narrow"><div><h6>Posted on</h6><p>2025-05-16</p></div></div><div class="level-item is-narrow"><div><h6>Updated on</h6><p>2025-05-16</p></div></div><div class="level-item is-narrow"><div><h6>Licensed under</h6><p><a class="icons" rel="noopener" target="_blank" title="Creative Commons" href="https://creativecommons.org/"><i class="icon fab fa-creative-commons"></i></a><a class="icons" rel="noopener" target="_blank" title="Attribution" href="https://creativecommons.org/licenses/by/4.0/"><i class="icon fab fa-creative-commons-by"></i></a><a class="icons" rel="noopener" target="_blank" title="Noncommercial" href="https://creativecommons.org/licenses/by-nc/4.0/"><i class="icon fab fa-creative-commons-nc"></i></a></p></div></div></div></div></div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/instruction-scheduling/">instruction scheduling</a></div><div class="notification is-danger">You need to set <code>install_url</code> to use ShareThis. Please set it in <code>_config.yml</code>.</div></article></div><div class="card"><div class="card-content"><h3 class="menu-label has-text-centered">Like this article? Support the author with</h3><div class="buttons is-centered"><a class="button donate" href="/" target="_blank" rel="noopener" data-type="afdian"><span class="icon is-small"><i class="fas fa-charging-station"></i></span><span>Afdian.net</span></a><a class="button donate" data-type="alipay"><span class="icon is-small"><i class="fab fa-alipay"></i></span><span>Alipay</span><span class="qrcode"><img src="/" alt="Alipay"></span></a><a class="button donate" href="/" target="_blank" rel="noopener" data-type="buymeacoffee"><span class="icon is-small"><i class="fas fa-coffee"></i></span><span>Buy me a coffee</span></a><a class="button donate" href="/" target="_blank" rel="noopener" data-type="patreon"><span class="icon is-small"><i class="fab fa-patreon"></i></span><span>Patreon</span></a><div class="notification is-danger">You forgot to set the <code>business</code> or <code>currency_code</code> for Paypal. Please set it in <code>_config.yml</code>.</div><a class="button donate" data-type="wechat"><span class="icon is-small"><i class="fab fa-weixin"></i></span><span>Wechat</span><span class="qrcode"><img src="/" alt="Wechat"></span></a></div></div></div><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2023/11/17/My-Hello-World/"><span class="level-item">It&#039;s my Hello,World!</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><div class="card" id="comments"><div class="card-content"><h3 class="title is-5">Comments</h3><div class="notification is-danger">You forgot to set the <code>shortname</code> for Disqus. Please set it in <code>_config.yml</code>.</div></div></div></div><div class="column column-left is-4-tablet is-4-desktop is-4-widescreen  order-1"><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar" src="/img/avatar.png" alt="Your name"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">Your name</p><p class="is-size-6 is-block">Your title</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>Your location</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">Posts</p><a href="/archives/"><p class="title">3</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">Categories</p><a href="/categories/"><p class="title">0</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">Tags</p><a href="/tags/"><p class="title">2</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/ppoffice" target="_blank" rel="me noopener">Follow</a></div><div class="level is-mobile is-multiline"><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="Github" href="https://github.com/ppoffice"><i class="fab fa-github"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="Facebook" href="https://facebook.com"><i class="fab fa-facebook"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="Twitter" href="https://twitter.com"><i class="fab fa-twitter"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="Dribbble" href="https://dribbble.com"><i class="fab fa-dribbble"></i></a><a class="level-item button is-transparent is-marginless" target="_blank" rel="me noopener" title="RSS" href="/"><i class="fas fa-rss"></i></a></div></div></div><!--!--><div class="card widget" data-type="links"><div class="card-content"><div class="menu"><h3 class="menu-label">Links</h3><ul class="menu-list"><li><a class="level is-mobile" href="https://hexo.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Hexo</span></span><span class="level-right"><span class="level-item tag">hexo.io</span></span></a></li><li><a class="level is-mobile" href="https://bulma.io" target="_blank" rel="noopener"><span class="level-left"><span class="level-item">Bulma</span></span><span class="level-right"><span class="level-item tag">bulma.io</span></span></a></li></ul></div></div></div><!--!--><div class="card widget" data-type="recent-posts"><div class="card-content"><h3 class="menu-label">Recents</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2025-05-16T14:19:29.000Z">2025-05-16</time></p><p class="title"><a href="/2025/05/16/sched-model-draft/">sched-model-draft</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2023-11-17T03:57:00.000Z">2023-11-17</time></p><p class="title"><a href="/2023/11/17/My-Hello-World/">It&#039;s my Hello,World!</a></p></div></article><article class="media"><div class="media-content"><p class="date"><time dateTime="2022-02-09T16:00:00.000Z">2022-02-10</time></p><p class="title"><a href="/2022/02/10/How-to-use-hexo/">How to use hexo</a></p></div></article></div></div><div class="card widget" data-type="archives"><div class="card-content"><div class="menu"><h3 class="menu-label">Archives</h3><ul class="menu-list"><li><a class="level is-mobile" href="/archives/2025/05/"><span class="level-start"><span class="level-item">May 2025</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/archives/2023/11/"><span class="level-start"><span class="level-item">November 2023</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li><li><a class="level is-mobile" href="/archives/2022/02/"><span class="level-start"><span class="level-item">February 2022</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></div></div></div><div class="card widget" data-type="tags"><div class="card-content"><div class="menu"><h3 class="menu-label">Tags</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/Hello-Wolrd/"><span class="tag">Hello,Wolrd!</span><span class="tag">1</span></a></div><div class="control"><a class="tags has-addons" href="/tags/instruction-scheduling/"><span class="tag">instruction scheduling</span><span class="tag">1</span></a></div></div></div></div></div><div class="card widget" data-type="subscribe-email"><div class="card-content"><div class="menu"><h3 class="menu-label">Subscribe for updates</h3><form action="https://feedburner.google.com/fb/a/mailverify" method="post" target="popupwindow" onsubmit="window.open(&#039;https://feedburner.google.com/fb/a/mailverify?uri=&#039;,&#039;popupwindow&#039;,&#039;scrollbars=yes,width=550,height=520&#039;);return true"><input type="hidden" value="" name="uri"><input type="hidden" name="loc" value="en_US"><div class="field has-addons"><div class="control has-icons-left is-expanded"><input class="input" name="email" type="email" placeholder="Email"><span class="icon is-small is-left"><i class="fas fa-envelope"></i></span></div><div class="control"><input class="button" type="submit" value="Subscribe"></div></div></form></div></div></div><div class="card widget"><div class="card-content"><div class="notification is-danger">You need to set <code>client_id</code> and <code>slot_id</code> to show this AD unit. Please set it in <code>_config.yml</code>.</div></div></div><div class="card widget" data-type="subscribe-email"><div class="card-content"><div class="menu"><h3 class="menu-label">follow.it</h3><form action="" method="post" target="_blank"><div class="field has-addons"><div class="control has-icons-left is-expanded"><input class="input" name="email" type="email" placeholder="Email"><span class="icon is-small is-left"><i class="fas fa-envelope"></i></span></div><div class="control"><input class="button" type="submit" value="Subscribe"></div></div></form></div></div></div></div><!--!--></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/logo.svg" alt="andreww" height="28"></a><p class="is-size-7"><span>&copy; 2025 yinghao</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">© 2019</p></div><div class="level-end"><div class="field has-addons"><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Creative Commons" href="https://creativecommons.org/"><i class="fab fa-creative-commons"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Attribution 4.0 International" href="https://creativecommons.org/licenses/by/4.0/"><i class="fab fa-creative-commons-by"></i></a></p><p class="control"><a class="button is-transparent is-large" target="_blank" rel="noopener" title="Download on GitHub" href="https://github.com/ppoffice/hexo-theme-icarus"><i class="fab fa-github"></i></a></p></div></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("en");</script><script>var IcarusThemeSettings = {
-            article: {
-                highlight: {
-                    clipboard: true,
-                    fold: 'unfolded'
-                }
-            }
-        };</script><script data-pjax src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="Back to top" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script data-pjax src="/js/back_to_top.js" defer></script><!--!--><!--!--><!--!--><script src="https://cdn.jsdelivr.net/npm/cookieconsent@3.1.1/build/cookieconsent.min.js" defer></script><script>window.addEventListener("load", () => {
-      window.cookieconsent.initialise({
-        type: "info",
-        theme: "edgeless",
-        static: false,
-        position: "bottom-left",
-        content: {
-          message: "This website uses cookies to improve your experience.",
-          dismiss: "Got it!",
-          allow: "Allow cookies",
-          deny: "Decline",
-          link: "Learn more",
-          policy: "Cookie Policy",
-          href: "https://www.cookiesandyou.com/",
-        },
-        palette: {
-          popup: {
-            background: "#edeff5",
-            text: "#838391"
-          },
-          button: {
-            background: "#4b81e8"
-          },
-        },
-      });
-    });</script><script src="https://cdn.jsdelivr.net/npm/lightgallery@1.10.0/dist/js/lightgallery.min.js" defer></script><script src="https://cdn.jsdelivr.net/npm/justifiedGallery@3.8.1/dist/js/jquery.justifiedGallery.min.js" defer></script><script>window.addEventListener("load", () => {
-            if (typeof $.fn.lightGallery === 'function') {
-                $('.article').lightGallery({ selector: '.gallery-item' });
-            }
-            if (typeof $.fn.justifiedGallery === 'function') {
-                if ($('.justified-gallery > p > .gallery-item').length) {
-                    $('.justified-gallery > p > .gallery-item').unwrap();
-                }
-                $('.justified-gallery').justifiedGallery();
-            }
-        });</script><!--!--><!--!--><script src="https://cdn.jsdelivr.net/npm/pjax@0.2.8/pjax.min.js"></script><script src="/js/pjax.js"></script><!--!--><!--!--><!--!--><script data-pjax src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="Type something..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script data-pjax src="/js/insight.js" defer></script><script data-pjax>document.addEventListener('DOMContentLoaded', function () {
-            loadInsight({"contentUrl":"/content.json"}, {"hint":"Type something...","untitled":"(Untitled)","posts":"Posts","pages":"Pages","categories":"Categories","tags":"Tags"});
-        });</script></body></html>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/instruction-scheduling/" rel="tag"># instruction scheduling</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2023/11/17/My-Hello-World/" rel="prev" title="It&#39;s my Hello,World!">
+                  <i class="fa fa-angle-left"></i> It's my Hello,World!
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+  <div class="copyright">
+    &copy; 
+    <span itemprop="copyrightYear">2025</span>
+    <span class="with-love">
+      <i class="fa fa-heart"></i>
+    </span>
+    <span class="author" itemprop="copyrightHolder">yinghao</span>
+  </div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+  <div class="sidebar-dimmer"></div>
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up fa-lg"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+</body>
+</html>
